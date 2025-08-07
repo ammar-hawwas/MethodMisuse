@@ -3,9 +3,17 @@ import asyncio
 import argparse
 import os
 
+# ANSI color codes for terminal
+RED = '\033[91m'
+GREEN = '\033[92m'
+YELLOW = '\033[93m'
+RESET = '\033[0m'
+
 DEFAULT_WORDLIST = os.path.join("wordlists", "common.txt")
 CONCURRENT_CONNECTIONS = 20
 
+# Methods considered risky
+RISKY_METHODS = ["PUT", "DELETE", "PATCH"]
 
 async def fetch_status(session, url):
     try:
@@ -21,7 +29,6 @@ async def fetch_options(session, url):
             return url, allow
     except:
         return url, None
-
 
 async def scan(target, wordlist_path):
     connector = aiohttp.TCPConnector(limit=CONCURRENT_CONNECTIONS)
@@ -51,11 +58,15 @@ async def scan(target, wordlist_path):
 
         for url, allow in options_responses:
             if allow:
-                print(f"[+] {url} supports methods: {allow}")
-                # ممكن تضيف تنبيه هنا لو فيه PUT أو DELETE أو PATCH
-            else:
-                print(f"[-] {url} returned no Allow header.")
+                allow_methods = [method.strip().upper() for method in allow.split(',')]
+                risky = any(method in RISKY_METHODS for method in allow_methods)
 
+                if risky:
+                    print(f"{RED}[!!] {url} supports risky methods: {allow}{RESET}")
+                else:
+                    print(f"{GREEN}[+] {url} supports methods: {allow}{RESET}")
+            else:
+                print(f"{YELLOW}[-] {url} returned no Allow header.{RESET}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="MethodMisuse: Discover risky HTTP methods after directory fuzzing")
